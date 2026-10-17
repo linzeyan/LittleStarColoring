@@ -1,0 +1,24 @@
+/docs
+
+# --- Xcode / xcodegen ---
+# Coloring.xcodeproj is generated from project.yml via `make generate` — not committed.
+Coloring.xcodeproj/
+*.xcuserstate
+xcuserdata/
+DerivedData/
+
+# --- Build output ---
+build/
+
+# --- Line art scratch (regenerate with `make pages`) ---
+# The pipeline's products under Coloring/Resources/Pages ARE committed: the app build
+# must not need Python. Only the review aids are disposable.
+LineArt/previews/
+LineArt/debug/
+LineArt/candidates/
+
+# --- macOS / editors ---
+.DS_Store
+.vscode/
+.idea/
+__pycache__

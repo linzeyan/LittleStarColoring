@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#6FD0FA"/>
+      <stop offset="1" stop-color="#2A93E8"/>
+    </linearGradient>
+    <clipPath id="inside"><polygon points="470.0,140.0 568.7,344.1 793.4,374.9 629.8,531.9 669.8,755.1 470.0,648.0 270.2,755.1 310.2,531.9 146.6,374.9 371.3,344.1"/></clipPath>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#sky)"/>
+  <polygon points="470.0,140.0 568.7,344.1 793.4,374.9 629.8,531.9 669.8,755.1 470.0,648.0 270.2,755.1 310.2,531.9 146.6,374.9 371.3,344.1" fill="#FFFFFF"/>
+  <polygon clip-path="url(#inside)" points="0,0 500,0 500,100 566,160 500,220 566,280 500,340 566,400 500,460 566,520 500,580 566,640 500,700 566,760 500,820 566,880 566,1024 0,1024" fill="#FDD835" stroke="#FDD835" stroke-width="26" stroke-linejoin="round"/>
+  <polygon points="470.0,140.0 568.7,344.1 793.4,374.9 629.8,531.9 669.8,755.1 470.0,648.0 270.2,755.1 310.2,531.9 146.6,374.9 371.3,344.1" fill="none" stroke="#212121" stroke-width="40" stroke-linejoin="round"/>
+  <circle cx="408" cy="488" r="22" fill="#212121"/>
+  <circle cx="532" cy="488" r="22" fill="#212121"/>
+  <path d="M 410 550 Q 470 608 530 550" fill="none" stroke="#212121" stroke-width="20" stroke-linecap="round"/>
+  <g transform="translate(572,640) rotate(45)">
+    <polygon points="0,-18 78,-50 78,50 0,18" fill="#FDD835" stroke="#212121" stroke-width="16" stroke-linejoin="round"/>
+    <rect x="78" y="-50" width="270" height="100" rx="14" fill="#FDD835"/>
+    <rect x="124" y="-50" width="170" height="100" fill="#FFFFFF" fill-opacity="0.5"/>
+    <line x1="146" y1="-50" x2="146" y2="50" stroke="#212121" stroke-width="9"/>
+    <line x1="272" y1="-50" x2="272" y2="50" stroke="#212121" stroke-width="9"/>
+    <rect x="78" y="-50" width="270" height="100" rx="14" fill="none" stroke="#212121" stroke-width="16"/>
+  </g>
+</svg>
