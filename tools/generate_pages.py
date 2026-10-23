@@ -5,12 +5,13 @@
 """Generate coloring page candidates, review them, and pick one per page.
 
 LineArt/SOURCES.md is the input: its style lines (quoted, each led by the categories it
-styles) and its table of page | subject | seed | edit. Besides LineArt/sources,
+styles, or by single pages as category/page, which win over their category's) and its table of page | subject | model | seed | edit. Besides LineArt/sources,
 everything written here is scratch under LineArt/candidates/ (not committed).
 
-  generate   z-image-turbo, seeds 1–3 per page     → candidates/<page>/seed-N.png
+  generate   z-image-turbo (8-bit, or the row's model), seeds 1–3 → candidates/<page>/seed-N.png
   review     each candidate through the page pipeline → candidates/review-NN.png
   edit       qwen-image-edit on the picked seed, per the edit column → candidates/<page>/edit.png
+             (steps joined by " → " run in turn; "[N] " before a step sets its seed, default 1)
   pick       the picked seed, or its edit           → LineArt/sources/<category>/<page>/<slug>.png
 
 Review runs the same functions `make pages` does, so a region count on a sheet is the
@@ -41,9 +42,13 @@ ROOT = Path(__file__).resolve().parent.parent
 SOURCES_MD = ROOT / "LineArt" / "SOURCES.md"
 SOURCES = ROOT / "LineArt" / "sources"
 CANDIDATES = ROOT / "LineArt" / "candidates"
-MODELS = Path.home() / "git" / "mlx-dir" / "models" / "AbstractFramework"
-GENERATOR = MODELS / "z-image-turbo-8bit"
-EDITOR = MODELS / "qwen-image-edit-2511-8bit"
+MODELS = Path.home() / "git" / "mlx-dir" / "models"
+# The table's model column: blank is the 8-bit build most pages were made with.
+GENERATORS = {
+    "": MODELS / "AbstractFramework" / "z-image-turbo-8bit",
+    "bf16": MODELS / "mlx-community" / "Z-Image-Turbo-bf16",
+}
+EDITOR = MODELS / "AbstractFramework" / "qwen-image-edit-2511-8bit"
 SEEDS = (1, 2, 3)
 EDIT_SUFFIX = "。其他地方都保持不變：黑色手繪線條、純白背景、不上色。"
 # Spec §6: background plus at least two colorable regions, at most 30 in all.
@@ -65,6 +70,7 @@ class Row:
     category: str
     page: str
     subject: str
+    model: str
     seed: int | None
     edit: str
 
@@ -72,19 +78,28 @@ class Row:
     def candidates(self) -> Path:
         return CANDIDATES / self.page
 
+    def style(self, styles: dict[str, str]) -> str:
+        # A page can have its own style: a category's style is shared by pages that must
+        # keep reproducing, so it can't change for one page that needs another look.
+        return styles.get(f"{self.category}/{self.page}", styles[self.category])
+
 
 def read_sources() -> tuple[dict[str, str], list[Row]]:
     """The style per category, and the table's rows."""
     lines = SOURCES_MD.read_text(encoding="utf-8").splitlines()
     styles, rows = {}, []
     for line in lines:
-        if m := re.fullmatch(r"> ((?:\d\d-[a-z-]+ ?)+): (.+)", line):
+        if m := re.fullmatch(r"> ((?:\d\d-[a-z-]+(?:/\d\d-[a-z0-9-]+)? ?)+): (.+)", line):
             styles |= dict.fromkeys(m[1].split(), m[2].strip())
-        elif m := re.fullmatch(r"\| (\d\d-[a-z-]+)/(\d\d-[a-z0-9-]+) \| (.+?) \| (\d*) *\| (.*?) *\|", line):
-            rows.append(Row(m[1], m[2], m[3], int(m[4]) if m[4] else None, m[5]))
+        elif m := re.fullmatch(r"\| (\d\d-[a-z-]+)/(\d\d-[a-z0-9-]+) \| (.+?) \| ([a-z0-9]*) *\| (\d*) *\| (.*?) *\|",
+                               line):
+            rows.append(Row(m[1], m[2], m[3], m[4], int(m[5]) if m[5] else None, m[6]))
     unstyled = sorted({row.category for row in rows} - styles.keys())
     if unstyled:
         sys.exit(f"no style line for: {' '.join(unstyled)}")
+    unknown = sorted({row.model for row in rows} - GENERATORS.keys())
+    if unknown:
+        sys.exit(f"unknown model: {' '.join(unknown)}")
     return styles, rows
 
 
@@ -102,7 +117,7 @@ def generate(styles: dict[str, str], rows: list[Row]) -> int:
             continue
         row.candidates.mkdir(parents=True, exist_ok=True)
         start = time.monotonic()
-        code = mlxgen(["--model", str(GENERATOR), "--prompt", styles[row.category] + row.subject, "--steps", "8",
+        code = mlxgen(["--model", str(GENERATORS[row.model]), "--prompt", row.style(styles) + row.subject, "--steps", "8",
                        "--guidance", "0", "--seed", *map(str, missing), "--width", "1024", "--height", "1024",
                        "--output", str(row.candidates / "seed.png")], row.candidates / "generate.log")
         # mlx-gen names a multi-seed run <stem>_seed_<n>.png, a single-seed run <stem>.png.
@@ -184,13 +199,22 @@ def edit(rows: list[Row]) -> int:
             print(f"{row.page}: an edit needs a picked seed", file=sys.stderr)
             failed += 1
             continue
-        start = time.monotonic()
-        code = mlxgen(["--model", str(EDITOR), "--prompt", row.edit + EDIT_SUFFIX, "--steps", "6", "--seed", "1",
-                       "--width", "1024", "--height", "1024",
-                       "--image-path", str(row.candidates / f"seed-{row.seed}.png"),
-                       "--output", str(row.candidates / "edit.png")], row.candidates / "edit.log")
-        failed += code != 0
-        print(f"{row.page}: edit exit {code} in {time.monotonic() - start:.0f}s", flush=True)
+        # Steps run in turn, each on the one before: Qwen does one kind of fix well per
+        # pass, and asking for several at once left half of them undone.
+        steps = row.edit.split(" → ")
+        src = row.candidates / f"seed-{row.seed}.png"
+        for n, step in enumerate(steps, 1):
+            seed, text = m.groups() if (m := re.fullmatch(r"\[(\d+)\] (.+)", step)) else ("1", step)
+            out = row.candidates / ("edit.png" if n == len(steps) else f"edit-{n}.png")
+            start = time.monotonic()
+            code = mlxgen(["--model", str(EDITOR), "--prompt", text + EDIT_SUFFIX, "--steps", "6", "--seed", seed,
+                           "--width", "1024", "--height", "1024", "--image-path", str(src), "--output", str(out)],
+                          row.candidates / f"edit-{n}.log")
+            print(f"{row.page}: edit {n}/{len(steps)} exit {code} in {time.monotonic() - start:.0f}s", flush=True)
+            if code != 0:
+                failed += 1
+                break
+            src = out
     return 1 if failed else 0
 
 

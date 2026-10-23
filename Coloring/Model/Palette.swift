@@ -37,20 +37,26 @@ struct RGBA: Hashable, Sendable {
 
 enum Palette {
     /// Two skin tones because children color people, and a single "peach" tells some
-    /// of them their own skin isn't a color. White doubles as "back to paper".
+    /// of them their own skin isn't a color. White doubles as "back to paper". White to
+    /// black run light to dark, three grays between them, so the row reads as one scale.
     static let colors: [RGBA] = [
         "#E53935", "#FB8C00", "#FDD835", "#9CCC65", "#43A047", "#4FC3F7", "#1E88E5",
-        "#8E24AA", "#F48FB1", "#F6D3B3", "#A86B4C", "#6D4C41", "#212121", "#FFFFFF",
+        "#8E24AA", "#F48FB1", "#F6D3B3", "#A86B4C", "#6D4C41",
+        "#FFFFFF", "#C8C8C8", "#9A9A9A", "#616161", "#212121",
     ].map { RGBA(hex: $0)! }
 }
 
-/// The child's own color: pick a hue, then make it paler or darker. Both sliders draw
-/// their track with this same function, so the track shows exactly what you'll get.
+/// The child's own color: pick a hue, make it paler or darker, then as bright or as gray
+/// as wanted. Every slider draws its track with this same function, so the track shows
+/// exactly what you'll get.
 struct CustomColor: Equatable, Sendable {
     /// 0...1 around the color wheel.
     var hue = 0.55
     /// 0 pale … 0.5 the pure hue … 1 dark.
     var shade = 0.5
+    /// 0 gray … 1 the full color. Toward a gray of the same lightness, so the muted colors
+    /// in between (dusty blue, olive) keep the lightness the shade slider chose.
+    var vividness = 1.0
 
     var rgba: RGBA {
         var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
@@ -59,8 +65,11 @@ struct CustomColor: Equatable, Sendable {
         let t = (shade - 0.5) * 2 * 0.85
         let toward: CGFloat = t < 0 ? 1 : 0
         let amount = CGFloat(abs(t))
-        func channel(_ c: CGFloat) -> UInt8 { UInt8((c + (toward - c) * amount) * 255 + 0.5) }
-        return RGBA(r: channel(r), g: channel(g), b: channel(b))
+        func shaded(_ c: CGFloat) -> CGFloat { c + (toward - c) * amount }
+        let (sr, sg, sb) = (shaded(r), shaded(g), shaded(b))
+        let gray = 0.299 * sr + 0.587 * sg + 0.114 * sb
+        func channel(_ c: CGFloat) -> UInt8 { UInt8((gray + (c - gray) * CGFloat(vividness)) * 255 + 0.5) }
+        return RGBA(r: channel(sr), g: channel(sg), b: channel(sb))
     }
 }
 

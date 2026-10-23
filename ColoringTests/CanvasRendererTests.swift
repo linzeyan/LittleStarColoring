@@ -60,7 +60,7 @@ final class CanvasRendererTests: XCTestCase {
     }
 
     func testStrokeLandsAboveFillAndUndoRemovesOnlyIt() throws {
-        let blue = Palette.colors[6], black = Palette.colors[12]
+        let blue = Palette.colors[6], black = Palette.colors[16]
         renderer.setFill(blue, region: 1)
         let style = BrushStyle.brush(.marker)
         var builder = StrokeBuilder(style: style, baseSize: 48, seed: 1)
@@ -111,7 +111,7 @@ final class CanvasRendererTests: XCTestCase {
 
     func testClearLayersLeavesBarePageAndReturnsWhatWasThere() {
         let marker = BrushStyle.brush(.marker)
-        _ = stroke(marker, tip: RenderContext.shared.tip(for: marker), size: 96, color: Palette.colors[12],
+        _ = stroke(marker, tip: RenderContext.shared.tip(for: marker), size: 96, color: Palette.colors[16],
                    from: SIMD2(40, 40), to: SIMD2(300, 40))
         _ = stroke(.stamp, tip: RenderContext.shared.tip(for: .stamp), size: 96, color: Palette.colors[0],
                    from: SIMD2(160, 300), to: SIMD2(160, 300))
@@ -168,7 +168,7 @@ final class CanvasRendererTests: XCTestCase {
         }
         // No frame between two strokes: the second clears the stroke texture first.
         let marker = BrushStyle.brush(.marker)
-        _ = stroke(marker, tip: gpu.tip(for: marker), size: 60, color: Palette.colors[12],
+        _ = stroke(marker, tip: gpu.tip(for: marker), size: 60, color: Palette.colors[16],
                    from: SIMD2(100, 900), to: SIMD2(900, 950))
         _ = stroke(marker, tip: gpu.tip(for: marker), size: 60, color: Palette.colors[2],
                    from: SIMD2(100, 1000), to: SIMD2(900, 1050))

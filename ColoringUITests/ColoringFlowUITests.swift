@@ -56,6 +56,22 @@ final class ColoringFlowUITests: XCTestCase {
         XCTAssertTrue(onScreen(last) && last.isHittable, "swiping left never reaches the last category")
         snap("22-home-last")
         XCTAssertTrue(gear.isHittable, "settings scrolled away with the categories")
+        // Back from a category, home is exactly where the child left it, not at the start
+        // again. A swipe coasts on, so wait for the card to stop before noting where it is.
+        var left = last.frame
+        for _ in 0..<10 {
+            Thread.sleep(forTimeInterval: 0.3)
+            let now = last.frame
+            if now == left { break }
+            left = now
+        }
+        last.tap()
+        let back = app.buttons["category-back"]
+        XCTAssertTrue(back.waitForExistence(timeout: 5))
+        back.tap()
+        XCTAssertTrue(last.waitForExistence(timeout: 5))
+        XCTAssertTrue(onScreen(last) && last.isHittable, "home came back at the start, not at the last category")
+        XCTAssertEqual(last.frame.midX, left.midX, accuracy: 1, "home came back scrolled somewhere else")
         for _ in 0..<8 where !onScreen(vehicles) { scroller.swipeRight() }
 
         // Settings are for grown-ups: a child's tap on the gear must not open them.
@@ -114,6 +130,15 @@ final class ColoringFlowUITests: XCTestCase {
         XCTAssertEqual(undoFrame.midY, clearFrame.midY, accuracy: 1, "↶ and 🗑 are on different rows")
         let apart = max(clearFrame.minX - undoFrame.maxX, undoFrame.minX - clearFrame.maxX)
         XCTAssertTrue(apart >= 0 && apart < 16, "↶ is not beside 🗑 (\(apart) pt apart)")
+        // 📷 sits left of the toggle, on its row.
+        let photoFrame = app.buttons["tool-save-photo"].frame, toggleFrame = app.buttons["side-toggle"].frame
+        XCTAssertEqual(photoFrame.midY, toggleFrame.midY, accuracy: 1, "📷 is not on the toggle's row")
+        XCTAssertLessThanOrEqual(photoFrame.maxX, toggleFrame.minX, "📷 is not left of the toggle")
+        // Six rows of colors, the sizes and ↶ 🗑 all fit on the shortest iPad.
+        for id in ["side-toggle", "color-0", "color-custom", "size-custom", "tool-save-photo", "tool-clear"] {
+            let frame = app.buttons[id].frame
+            XCTAssertTrue(window.contains(frame), "\(id) is cut off at \(frame) in \(window)")
+        }
 
         app.buttons["color-5"].tap()
         canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.04, dy: 0.04)).tap()
@@ -124,7 +149,7 @@ final class ColoringFlowUITests: XCTestCase {
         // Every brush, two columns of six; the lower ones are reached by scrolling the tools.
         let brushes = ["crayon", "marker", "watercolor", "oil", "ink", "airbrush",
                        "rainbow", "glitter", "stars", "puffy", "chalk", "pencil"]
-        let colors = [4, 2, 8, 1, 12, 6]
+        let colors = [4, 2, 8, 1, 16, 6]
         for (i, brush) in brushes.enumerated() {
             app.buttons["tool-\(brush)"].tap()
             app.buttons["color-\(colors[i % colors.count])"].tap()
@@ -174,6 +199,7 @@ final class ColoringFlowUITests: XCTestCase {
         let toggle = app.buttons["side-toggle"]
         toggle.tap()
         XCTAssertFalse(undo.exists, "the toggle left the side column out")
+        XCTAssertFalse(app.buttons["tool-save-photo"].exists, "📷 stayed out with the side column put away")
         snap("21-side-folded")
         toggle.tap()
         let custom = app.buttons["color-custom"]
@@ -187,6 +213,11 @@ final class ColoringFlowUITests: XCTestCase {
         hue.coordinate(withNormalizedOffset: CGVector(dx: 0.85, dy: 0.5)).tap()
         XCTAssertNotEqual(custom.value as? String, firstCustom, "the hue slider changes the color")
         snap("08-color-panel")
+        // All the way to gray: no color left, so the three channels match.
+        let vividness = app.descendants(matching: .any)["custom-vividness"]
+        vividness.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0.5)).tap()
+        let gray = try XCTUnwrap(custom.value as? String)
+        XCTAssertEqual(Set([1, 3, 5].map { gray.dropFirst($0).prefix(2) }).count, 1, "\(gray) isn't a gray")
         canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.12, dy: 0.5)).tap()
         XCTAssertFalse(hue.exists, "a touch on the canvas closes the panel")
         // Its sliders were opened from the side column, and go away with it.

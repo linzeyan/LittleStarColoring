@@ -124,7 +124,7 @@ final class CanvasController: ObservableObject {
         defer { Self.signposter.endInterval("open page", interval) }
         do {
             var step = Self.signposter.beginInterval("open: artwork")
-            let artwork = try await store.load(page.id)
+            let artwork = try await store.load(page.id, drawing: page.drawing)
             Self.signposter.endInterval("open: artwork", step)
             step = Self.signposter.beginInterval("open: page")
             let assets = try await Task.detached(priority: .userInitiated) {
@@ -294,7 +294,7 @@ final class CanvasController: ObservableObject {
             onThumbnail?(page.id, UIImage(cgImage: image))
         }
         do {
-            try await store.save(page.id, fills: fills, layer: layer, stamps: stamps, thumbnail: thumbnail,
+            try await store.save(page.id, drawing: page.drawing, fills: fills, layer: layer, stamps: stamps, thumbnail: thumbnail,
                                  thumbnailSize: Self.thumbnailPixels)
         } catch {
             isDirty = true

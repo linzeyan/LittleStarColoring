@@ -36,6 +36,14 @@ final class PageAssetTests: XCTestCase {
         XCTAssertEqual(Set(ids).count, ids.count)
     }
 
+    /// Every card shows its page's name; a page added without one would show its folder
+    /// name ("08-shark") to the grown-up reading it out.
+    func testEveryPageHasAChineseName() {
+        for page in Page.bundled() {
+            XCTAssertNotEqual(page.name, page.id, "no name for \(page.id)")
+        }
+    }
+
     func testLineArtIsInkOverTransparentPaper() throws {
         let page = try XCTUnwrap(Page.bundled().first)
         let alpha = Bitmap.alphaBytes(of: try Bitmap.image(at: page.lineArtURL), size: CanvasSpec.size)

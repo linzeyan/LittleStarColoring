@@ -75,7 +75,7 @@ final class AppModel: ObservableObject {
     }
 
     private func thumbnail(for page: Page) async -> UIImage? {
-        guard let image = await store.thumbnail(page.id).flatMap(UIImage.init(data:))
+        guard let image = await store.thumbnail(page.id, drawing: page.drawing).flatMap(UIImage.init(data:))
                 ?? UIImage(contentsOfFile: page.thumbnailURL.path)
         else { return nil }
         // Decoded off the main thread. Left lazy, the PNG decodes on the main thread the
@@ -114,16 +114,21 @@ struct RootView: View {
     @ObservedObject var model: AppModel
 
     var body: some View {
+        let atHome = model.category == nil && model.canvas == nil
         ZStack {
+            // Home stays underneath, hidden, so it comes back scrolled where the child left
+            // it. Rebuilt and scrolled back on appear, it landed off to the right on iOS 15:
+            // the layout wasn't final yet, and the scroll ran inside the fade.
+            HomeView(model: model)
+                .opacity(atHome ? 1 : 0)
+                .allowsHitTesting(atHome)
+                .accessibilityHidden(!atHome)
             if let canvas = model.canvas {
                 CanvasScreen(controller: canvas, placeholder: model.thumbnails[canvas.page.id],
                              onClose: model.closeCanvas)
                     .transition(.opacity)
             } else if let category = model.category {
                 CategoryView(model: model, category: category)
-                    .transition(.opacity)
-            } else {
-                HomeView(model: model)
                     .transition(.opacity)
             }
         }

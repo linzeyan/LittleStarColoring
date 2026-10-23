@@ -235,7 +235,7 @@ private struct StampLabel: View {
     }
 }
 
-/// Colors, sizes, then what to do with the page. Put away off the right edge until a tool
+/// 📷 beside the toggle, then colors, sizes, ↶ 🗑. Put away off the right edge until a tool
 /// is picked; the toggle at the top stays.
 private struct SideColumn: View {
     @ObservedObject var controller: CanvasController
@@ -246,8 +246,17 @@ private struct SideColumn: View {
 
     var body: some View {
         let dot = tile * 0.9
+        let away: AnyTransition = reduceMotion ? .opacity : .move(edge: .trailing).combined(with: .opacity)
         VStack(alignment: .trailing, spacing: gap * 2) {
-            toggle
+            // 📷 rides the toggle's row, so a sixth row of colors fits a 744 pt iPad without
+            // shrinking ↶ 🗑; it goes away with the rest of the column.
+            HStack(spacing: gap) {
+                if controller.sideColumnOpen {
+                    PhotoButton(controller: controller, tile: tile)
+                        .transition(away)
+                }
+                toggle
+            }
             if controller.sideColumnOpen {
                 VStack(spacing: 0) {
                     colors(dot: dot)
@@ -255,34 +264,31 @@ private struct SideColumn: View {
                     Spacer(minLength: gap * 2)
                     VStack(spacing: gap * 2) {
                         sizes
-                        VStack(spacing: gap) {
-                            PhotoButton(controller: controller, tile: tile)
-                            HStack(spacing: gap) {
-                                Button(action: controller.undoLast) {
-                                    ToolTile(isSelected: false, size: tile) {
-                                        Image(systemName: "arrow.uturn.backward")
-                                            .font(.system(size: tile * 0.4, weight: .bold))
-                                            .foregroundColor(Theme.selection)
-                                    }
+                        HStack(spacing: gap) {
+                            Button(action: controller.undoLast) {
+                                ToolTile(isSelected: false, size: tile) {
+                                    Image(systemName: "arrow.uturn.backward")
+                                        .font(.system(size: tile * 0.4, weight: .bold))
+                                        .foregroundColor(Theme.selection)
                                 }
-                                .disabled(!controller.canUndo)
-                                .opacity(controller.canUndo ? 1 : 0.35)
-                                .accessibilityIdentifier("tool-undo")
-                                .accessibilityLabel("復原")
-                                Button(action: onClear) {
-                                    ToolTile(isSelected: false, size: tile) {
-                                        Image(systemName: "trash")
-                                            .font(.system(size: tile * 0.38, weight: .semibold))
-                                            .foregroundColor(Theme.selection)
-                                    }
-                                }
-                                .accessibilityIdentifier("tool-clear")
-                                .accessibilityLabel("全部清掉")
                             }
+                            .disabled(!controller.canUndo)
+                            .opacity(controller.canUndo ? 1 : 0.35)
+                            .accessibilityIdentifier("tool-undo")
+                            .accessibilityLabel("復原")
+                            Button(action: onClear) {
+                                ToolTile(isSelected: false, size: tile) {
+                                    Image(systemName: "trash")
+                                        .font(.system(size: tile * 0.38, weight: .semibold))
+                                        .foregroundColor(Theme.selection)
+                                }
+                            }
+                            .accessibilityIdentifier("tool-clear")
+                            .accessibilityLabel("全部清掉")
                         }
                     }
                 }
-                .transition(reduceMotion ? .opacity : .move(edge: .trailing).combined(with: .opacity))
+                .transition(away)
             }
         }
         // As wide as the colors whether or not they're out, so the canvas never moves.
@@ -522,7 +528,7 @@ private struct StampPicker: View {
     }
 }
 
-/// Hue and pale ↔ dark for the child's own color.
+/// Hue, pale ↔ dark and bright ↔ gray for the child's own color.
 private struct ColorPanel: View {
     @ObservedObject var controller: CanvasController
 
@@ -535,11 +541,15 @@ private struct ColorPanel: View {
                 .frame(width: 76, height: 76)
             BigSlider(value: $controller.customColor.hue, knob: Color(custom.rgba.uiColor), id: "custom-hue",
                       label: "顏色") {
-                track(stride(from: 0.0, through: 1.0, by: 1.0 / 12).map { swatch(hue: $0, shade: custom.shade) })
+                track(stride(from: 0.0, through: 1.0, by: 1.0 / 12).map { swatch(custom, \.hue, $0) })
             }
             BigSlider(value: $controller.customColor.shade, knob: Color(custom.rgba.uiColor), id: "custom-shade",
                       label: "深淺") {
-                track([0, 0.25, 0.5, 0.75, 1].map { swatch(hue: custom.hue, shade: $0) })
+                track([0, 0.25, 0.5, 0.75, 1].map { swatch(custom, \.shade, $0) })
+            }
+            BigSlider(value: $controller.customColor.vividness, knob: Color(custom.rgba.uiColor),
+                      id: "custom-vividness", label: "鮮豔") {
+                track([0, 0.5, 1].map { swatch(custom, \.vividness, $0) })
             }
         }
         .padding(24)
@@ -547,8 +557,11 @@ private struct ColorPanel: View {
         .panelCard()
     }
 
-    private func swatch(hue: Double, shade: Double) -> Color {
-        Color(CustomColor(hue: hue, shade: shade).rgba.uiColor)
+    /// The current color with one slider moved to `value`.
+    private func swatch(_ color: CustomColor, _ slider: WritableKeyPath<CustomColor, Double>, _ value: Double) -> Color {
+        var color = color
+        color[keyPath: slider] = value
+        return Color(color.rgba.uiColor)
     }
 
     private func track(_ colors: [Color]) -> some View {

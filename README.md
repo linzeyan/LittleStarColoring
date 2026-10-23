@@ -10,7 +10,7 @@ An offline coloring book for children 5 and under, on iPad.
 - **Textured brushes,** drawn with Metal: crayon, colored pencil, chalk, marker, watercolor, oil, ink, airbrush, rainbow, glitter, stars and puffy paint. The eraser removes brush strokes and leaves fills alone.
 - **Stamps:** picture stamps and kaomoji. Drag a finger to lay down a row.
 - **Autosave.** Every page is saved as the child colors, and the category screen shows the saved pages as a gallery. The camera button adds the current picture to Photos.
-- **Made for small hands.** There is no text in the children's interface, the buttons are large, only one finger paints at a time, and a resting palm draws nothing. Undo is one tap away. Clearing a page asks first.
+- **Made for small hands.** The tools are pictures, not words (the only text is each page's name, for the grown-up playing along), the buttons are large, only one finger paints at a time, and a resting palm draws nothing. Undo is one tap away. Clearing a page asks first.
 - **Grown-ups' setting.** Press and hold the gear on the home screen for 1 second to open it. Its one switch is "paint runs out": oil, watercolor and ink thin out over a long stroke.
 
 The app runs on iPadOS 15 and later in landscape, because hand-me-down iPads are what small children usually get. It is tested on an iPad mini 4.

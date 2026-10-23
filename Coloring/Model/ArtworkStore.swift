@@ -29,8 +29,20 @@ actor ArtworkStore {
     private func layerURL(_ pageID: String) -> URL { folder(pageID).appendingPathComponent("strokes.png") }
     private func stampsURL(_ pageID: String) -> URL { folder(pageID).appendingPathComponent("stamps.png") }
     private func thumbnailURL(_ pageID: String) -> URL { folder(pageID).appendingPathComponent("thumb.png") }
+    private func drawingURL(_ pageID: String) -> URL { folder(pageID).appendingPathComponent("drawing.txt") }
 
-    func load(_ pageID: String) throws -> Artwork {
+    /// Artwork made on another drawing of the page (it has since been redrawn) is thrown
+    /// away: its fills would land in the wrong regions and its thumbnail shows the old
+    /// picture. Artwork from before drawings were recorded counts as another drawing.
+    private func discardIfRedrawn(_ pageID: String, drawing: String) {
+        guard FileManager.default.fileExists(atPath: folder(pageID).path),
+              (try? String(contentsOf: drawingURL(pageID), encoding: .utf8)) != drawing
+        else { return }
+        try? FileManager.default.removeItem(at: folder(pageID))
+    }
+
+    func load(_ pageID: String, drawing: String) throws -> Artwork {
+        discardIfRedrawn(pageID, drawing: drawing)
         var artwork = Artwork()
         if let data = try? Data(contentsOf: fillsURL(pageID)) {
             let saved = try JSONDecoder().decode(SavedFills.self, from: data)
@@ -51,9 +63,10 @@ actor ArtworkStore {
 
     /// `layer` and `stamps` are premultiplied RGBA8; `thumbnail` is premultiplied BGRA8,
     /// `thumbnailSize`².
-    func save(_ pageID: String, fills: [UInt8: RGBA], layer: Data, stamps: Data, thumbnail: Data,
+    func save(_ pageID: String, drawing: String, fills: [UInt8: RGBA], layer: Data, stamps: Data, thumbnail: Data,
               thumbnailSize: Int) throws {
         try FileManager.default.createDirectory(at: folder(pageID), withIntermediateDirectories: true)
+        try Data(drawing.utf8).write(to: drawingURL(pageID), options: .atomic)
         let saved = SavedFills(regionColors: Dictionary(uniqueKeysWithValues: fills.map { (String($0.key), $0.value.hex) }))
         try JSONEncoder().encode(saved).write(to: fillsURL(pageID), options: .atomic)
         let size = CanvasSpec.size
@@ -67,8 +80,9 @@ actor ArtworkStore {
         try Bitmap.png(thumbImage).write(to: thumbnailURL(pageID), options: .atomic)
     }
 
-    func thumbnail(_ pageID: String) -> Data? {
-        try? Data(contentsOf: thumbnailURL(pageID))
+    func thumbnail(_ pageID: String, drawing: String) -> Data? {
+        discardIfRedrawn(pageID, drawing: drawing)
+        return try? Data(contentsOf: thumbnailURL(pageID))
     }
 
     func delete(_ pageID: String) throws {

@@ -137,8 +137,16 @@ struct CategoryView: View {
                 ScrollView {
                     LazyVGrid(columns: columns, spacing: 28) {
                         ForEach(category.pages) { page in
-                            PageCard(image: model.thumbnails[page.id])
+                            VStack(spacing: 12) {
+                                PageCard(image: model.thumbnails[page.id])
+                                Text(page.name)
+                                    .font(.headline)
+                                    .foregroundColor(.secondary)
+                            }
+                                // The name too, not just the card: it's part of what a child taps.
+                                .contentShape(Rectangle())
                                 .accessibilityElement(children: .ignore)
+                                .accessibilityLabel(page.name)
                                 .accessibilityIdentifier("page-\(page.id)")
                                 .accessibilityAddTraits(.isButton)
                                 .onTapGesture { model.open(page) }
